@@ -27,7 +27,7 @@ function model_rhs(u,p,t)
     ] 
 end
 
-function model(p, data_chunk)::Vector{SVector{3,Float64}}
+function model(p, data_chunk; extend = 0.0)::Vector{SVector{3,Float64}}
     β,γ, I_0 = p
     l = length(data_chunk.cases_list) - 1
 
@@ -38,7 +38,7 @@ function model(p, data_chunk)::Vector{SVector{3,Float64}}
         0
     ]
     # model_rhs(u0,params,0)
-    prob = ODEProblem{false}(model_rhs, u0,[0.0,l],params)
+    prob = ODEProblem{false}(model_rhs, u0,(0.0,l + extend),params)
     # prob = ODEProblem{true}(model_rhs!, u0,[0.0,l],params)
     sol = solve(prob,Tsit5(); saveat = 1.0)
     return sol.u
@@ -65,13 +65,8 @@ function fit_submodel(data_chunk::DataChunk)
     # f(x_0,data_chunk)
     # @btime $f($x_0,$data_chunk)
 
-    prob = GalacticOptim.OptimizationProblem(f,x_0,data_chunk; lb = [0.0,0.0,0.0], ub = [5.0,1.0, 10_000.0])
+    prob = GalacticOptim.OptimizationProblem(f,x_0,data_chunk; lb = [0.0,0.0,0.0], ub = [5.0,1.0, 20_000.0])
     minimizer = solve(prob,BBO()).u
-    display(minimizer)
-
-    minimum_sol = model(minimizer, data_chunk)
-    p = plot([minimum_sol[i][3] - minimum_sol[i-1][3] for i in 2:length(minimum_sol)])
-    plot!(data_chunk.cases_list)
-    display(p)
+    return minimizer
 end
 
