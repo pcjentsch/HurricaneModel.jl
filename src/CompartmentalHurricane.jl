@@ -1,14 +1,13 @@
 module CompartmentalHurricane
-using Optim: minimizer
-using OrdinaryDiffEq: ForwardDiff
-using Base: Forward
+using OrdinaryDiffEq
 using CSV
 using DataFrames
 using DataFramesMeta
 using OrdinaryDiffEq
 using Dates
 using Plots
-using GalacticOptim, Optim
+using ThreadsX
+using BenchmarkTools
 export main
 include("data.jl")
 include("submodel.jl")
@@ -24,10 +23,19 @@ function main()
     # display(unique(dates))
     # plot(dates,test_ts)
     
-    chunks = make_data_chunks(ontario_data,30)
+    ontario_chunks = make_data_chunks(ontario_data,30)
+    models_dict = ThreadsX.map(collect(keys(location_data_by_region))) do region_key
+        region_data = location_data_by_region[region_key]
+        display(region_key)
+        region_data_chunks = make_data_chunks(region_data,30)
+        
+        models = map(fit_submodel, region_data_chunks)
+        return region_key => models
+    end |> Dict
+
     # fit_submodel(chunks[1])
 
-    fit_animation(ontario_data)
+    # fit_animation(ontario_data)
 end
 
 function make_data_chunks(location_data,size)

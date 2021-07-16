@@ -13,8 +13,6 @@ struct DataChunk
     recovered::Float64
 end
 
-
-
 using StaticArrays
 function model_rhs(u,p,t)
     (;β,γ) = p
@@ -51,8 +49,6 @@ function cost(sol,data)
     end
     return c
 end
-using BenchmarkTools
-using BlackBoxOptim
 function fit_submodel(data_chunk::DataChunk)
     data = data_chunk.cases_list
     l = Float64(length(data)) - 1
@@ -65,7 +61,7 @@ function fit_submodel(data_chunk::DataChunk)
     # f(x_0,data_chunk)
     # @btime $f($x_0,$data_chunk)
 
-    res = bboptimize(f,; SearchRange = [(0.0,2.0),(0.0,2.0),(0.0,50_000.0)],TraceMode = :silent)
+    res = bboptimize(f,; SearchRange = [(0.0,10.0),(0.0,10.0),(0.0,50_000.0)],TraceMode = :silent)
     # display(res)
     # minimizer = solve(prob,BBO()).u
     return best_candidate(res)
