@@ -1,8 +1,4 @@
 module CompartmentalHurricane
-using Optim: minimizer
-using Dates: default
-using DataFrames: Dict
-using Base: Float64
 using CSV
 using DataFrames
 using DataFramesMeta
@@ -14,7 +10,6 @@ export main
 include("data.jl")
 include("submodel.jl")
 include("plotting.jl")
-
 diff(l) = [l[i] - l[i-1] for i = 2:length(l)]
 
 function main()
@@ -26,9 +21,6 @@ function main()
     # plot(dates,test_ts)
     
     chunks = make_data_chunks(ontario_data,30)
-     
-    fit_submodel(chunks[1])
-
 
 end
 
@@ -36,7 +28,7 @@ function make_data_chunks(location_data,size)
     (; cases, population, dates) = location_data
     daily_case_incidence = diff(cases)
 
-     return map(50:length(cases)-size-1) do i
+    return map(50:length(cases)-size-1) do i
         DataChunk(
             daily_case_incidence[i:i+size],
             dates[i],
@@ -46,5 +38,9 @@ function make_data_chunks(location_data,size)
     end
 end
 
+# function fit_animation(ontario_data)
+
+
+# end
 
 end # module

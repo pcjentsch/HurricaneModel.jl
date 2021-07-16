@@ -34,7 +34,7 @@ function fetch_data_by_country()
         pop_row = Float64(row["VALUE"])
         location_data = LocationData(cases_data,dates_list,pop_row)
         return row["Province/State"] => location_data
-    end |> Dict
+    end |> Dict{String,LocationData}
     
     return region_cases
 end
