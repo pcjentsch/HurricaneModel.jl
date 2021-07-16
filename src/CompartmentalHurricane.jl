@@ -21,7 +21,7 @@ function main()
     # plot(dates,test_ts)
     
     chunks = make_data_chunks(ontario_data,30)
-
+    fit_animation()
 end
 
 function make_data_chunks(location_data,size)
@@ -38,9 +38,9 @@ function make_data_chunks(location_data,size)
     end
 end
 
-# function fit_animation(ontario_data)
+function fit_animation(ontario_data)
 
 
-# end
+end
 
 end # module
