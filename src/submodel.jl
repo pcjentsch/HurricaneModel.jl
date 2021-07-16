@@ -35,7 +35,7 @@ function model(p, data_chunk; extend = 0.0)::Vector{SVector{3,Float64}}
     u0 = @SVector[
         data_chunk.jurisdiction_population -  (I_0 + data_chunk.recovered),
         I_0,
-        0
+        0.0
     ]
     # model_rhs(u0,params,0)
     prob = ODEProblem{false}(model_rhs, u0,(0.0,l + extend),params)
@@ -58,15 +58,16 @@ function fit_submodel(data_chunk::DataChunk)
     l = Float64(length(data)) - 1
     x_0 = [2.0,0.5,100.0]
 
-    function f(x::Vector{Float64},p::DataChunk)
-        sol = model(x,p)
-        return cost(sol,p.cases_list)
+    function f(x::Vector{Float64})
+        sol = model(x,data_chunk)
+        return cost(sol,data_chunk.cases_list)
     end
     # f(x_0,data_chunk)
     # @btime $f($x_0,$data_chunk)
 
-    prob = GalacticOptim.OptimizationProblem(f,x_0,data_chunk; lb = [0.0,0.0,0.0], ub = [5.0,1.0, 20_000.0])
-    minimizer = solve(prob,BBO()).u
-    return minimizer
+    res = bboptimize(f,; SearchRange = [(0.0,2.0),(0.0,2.0),(0.0,50_000.0)],TraceMode = :silent)
+    # display(res)
+    # minimizer = solve(prob,BBO()).u
+    return best_candidate(res)
 end
 

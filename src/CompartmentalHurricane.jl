@@ -1,4 +1,7 @@
 module CompartmentalHurricane
+using Optim: minimizer
+using OrdinaryDiffEq: ForwardDiff
+using Base: Forward
 using CSV
 using DataFrames
 using DataFramesMeta
@@ -10,6 +13,7 @@ export main
 include("data.jl")
 include("submodel.jl")
 include("plotting.jl")
+
 diff(l) = [l[i] - l[i-1] for i = 2:length(l)]
 
 function main()
@@ -21,6 +25,8 @@ function main()
     # plot(dates,test_ts)
     
     chunks = make_data_chunks(ontario_data,30)
+    # fit_submodel(chunks[1])
+
     fit_animation(ontario_data)
 end
 
@@ -28,7 +34,7 @@ function make_data_chunks(location_data,size)
     (; cases, population, dates) = location_data
     daily_case_incidence = diff(cases)
 
-    return map(50:size:length(cases)-size-1) do i
+    return map(50:5:length(cases)-size-1) do i
         DataChunk(
             daily_case_incidence[i:i+size],
             dates[i],
@@ -41,7 +47,7 @@ end
 function fit_animation(location_data)
     (; cases, population, dates) = location_data
     daily_case_incidence = diff(cases)
-    plt = plot(dates[2:end],daily_case_incidence; size = (800,600), dpi =300,
+    plt = plot(dates[2:end],daily_case_incidence; size = (600,500), dpi =300,
         xlabel = "Date",
         ylabel = "Case incidence",
         title = "Fitting case incidence in Ontario, Canada",
@@ -49,8 +55,8 @@ function fit_animation(location_data)
     )
     yl = ylims(plt)
     xl = xlims(plt)
-    size = 30
-    lookahead = 20
+    size = 80
+    lookahead = 50
     chunks = make_data_chunks(location_data,size)
     anim = Animation()
 
@@ -64,7 +70,7 @@ function fit_animation(location_data)
         fitted_indicent_cases = [fitted_sol[i][3] - fitted_sol[i-1][3] for i in 2:(size+lookahead)]
         plot!(frame_i,xpts,fitted_indicent_cases;
          xlims = xl, ylims = yl, label = "fitted model")
-        vspan!(frame_i,[begin_date,begin_date+Day(size-1)];color = :cyan, alpha = 0.2, label = "fitting window")
+        vspan!(frame_i,[begin_date,begin_date+Day(size-1)];color = :cyan, alpha = 0.1, label = "fitting window")
         
         frame(anim,frame_i)
     end
