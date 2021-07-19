@@ -5,15 +5,15 @@ function fit_animation(location_data)
     plt = plot(dates[2:end],daily_case_incidence; 
         xlabel = "Date",
         ylabel = "Case incidence",
-        title = "Fitting case incidence in Ontario, Canada",
-        label = "Case incidence in Ontario, Canada"
+        title = "Fitting case incidence in Canada",
+        label = "Case incidence in Canada"
     )
     yl = ylims(plt)
     xl = xlims(plt)
     size = 90
     lookahead = 500
     chunks = make_data_chunks(location_data,size,5)
-    minimizers = ThreadsX.map(fit_submodel,chunks)
+    minimizers = fit_submodel(chunks)
 
 
     anim = Animation()

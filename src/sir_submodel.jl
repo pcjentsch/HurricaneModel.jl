@@ -68,28 +68,27 @@ function fit_submodel(data_chunk::DataChunk; x_0 = [1.0,0.5,100.0])
     # f(x_0,data_chunk)
     # @btime $f($x_0,$data_chunk)
     # betweenness centrality
-    f(x_0)
     # display(x_0)
-    # res = bboptimize(f,x_0; SearchRange = [(0.0,10.0),(0.0,10.0),(0.0,10_000.0)],
-    # TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 20_000)
+    res = bboptimize(f; SearchRange = [(0.0,10.0),(0.0,10.0),(0.0,10_000.0)],
+    TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 25_000)
     # display(best_candidate(res))
     # minimizer = solve(prob,BBO()).u
     
-    grad = zeros(3)
-    f_w_grad(x_0,grad)
+    # grad = zeros(3)
+    # f_w_grad(x_0,grad)
     
-    opt = Opt(:LD_LBFGS, 3)
-    opt.lower_bounds = [0.0,0.0,0.0]
-    opt.upper_bounds = [10.0,10.0,10_000.0]
-    opt.xtol_rel = 1e-4
+    # opt = Opt(:LN_NELDERMEAD, 3)
+    # opt.lower_bounds = [0.0,0.0,0.0]
+    # opt.upper_bounds = [10.0,10.0,10_000.0]
+    # opt.xtol_rel = 1e-4
 
-    opt.min_objective = f_w_grad
+    # opt.min_objective = f_w_grad
 
-    (minf,minx,ret) = NLopt.optimize(opt, x_0)
-    numevals = opt.numevals # the number of function evaluations
+    # (minf,minx,ret) = NLopt.optimize(opt, x_0)
+    # numevals = opt.numevals # the number of function evaluations
     # println("got $minf at $minx after $numevals iterations (returned $ret)")
 
-    return minx #best_candidate(res)#
+    return best_candidate(res)#minx
 end
 function fit_submodel(data_chunks::Vector{DataChunk})
     

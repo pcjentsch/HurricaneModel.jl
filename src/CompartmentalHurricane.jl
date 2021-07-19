@@ -1,4 +1,5 @@
 module CompartmentalHurricane
+using DataFrames: append_rows!
 using OrdinaryDiffEq
 using CSV
 using DataFrames
@@ -20,19 +21,24 @@ diff(l) = [l[i] - l[i-1] for i = 2:length(l)]
 
 function main()
     location_data_by_region = fetch_data_by_country()
+    
     plot_forecast(location_data_by_region)
-    # fit_animation(ontario_data)
+    
+    # fit_animation(location_data_by_region["Canada"])
+
+    return location_data_by_region
 end
 
 
-
+using Serialization
 function plot_forecast(location_data_by_region)
 
-    ontario_data = location_data_by_region["Ontario"]
+    ontario_data = location_data_by_region["Canada"]
     chunks = make_data_chunks(ontario_data,40,7)
     display(chunks[50].begin_date)
-    aggregate_data = aggregate(location_data_by_region)
-
+    # computed_aggregate_data = aggregate(location_data_by_region)
+    # serialize("cache.dat", computed_aggregate_data)
+    aggregate_data = deserialize("cache.dat")
     test_date = Date(2020,12,1)
     test_date_index = findfirst(==(test_date),ontario_data.dates)
     test_data = DataChunk(

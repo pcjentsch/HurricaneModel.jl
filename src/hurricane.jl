@@ -22,7 +22,7 @@ end
 function fit_region((region_key,region_data,))
     region_data_chunks = make_data_chunks(region_data,30,7)    
     models = fit_submodel(region_data_chunks)
-    return [(loc = region_key,date = chunk.begin_date,stats = SIR_statistics(model)) for (chunk,model) in zip(region_data_chunks,models)] 
+    return [(loc = region_key,date = chunk.begin_date,stats = model) for (chunk,model) in zip(region_data_chunks,models)] 
 end
 
 function SIR_statistics(model)
@@ -43,7 +43,7 @@ end
 
 
 function sufficiently_close(x,y)
-    eps = (0.2,0.2)
+    eps = (0.05,0.05)
     for (x_i,y_i,eps_i) in zip(x,y,eps)
         if !(abs(x_i - y_i)<eps_i)
             return false
@@ -55,7 +55,7 @@ end
 
 function forecast(x::DataChunk,aggregate_data,forecast_length, location_data_by_region)
     model = fit_submodel(x)
-    sufficiently_close_to_x(pt) = sufficiently_close(pt,SIR_statistics(model))
+    sufficiently_close_to_x(pt) = sufficiently_close(SIR_statistics(pt),SIR_statistics(model))
     display(SIR_statistics(model))
     close_pts = filter(:stats => sufficiently_close_to_x,aggregate_data) |>
             df -> filter(:date => <(x.begin_date - Day(length(x.cases_list))),df) 
