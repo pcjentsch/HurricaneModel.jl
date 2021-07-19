@@ -32,7 +32,8 @@ function fetch_data_by_country()
         # display(count(ismissing,row[:end]))
         cases_data = Vector{Float64}(row[ts_begin_index:end])
         pop_row = Float64(row["VALUE"])
-        location_data = LocationData(cases_data,dates_list,pop_row)
+        index_of_first_case = findfirst(>(0),cases_data)
+        location_data = LocationData(cases_data[index_of_first_case:end],dates_list[index_of_first_case:end],pop_row)
         return row["Province/State"] => location_data
     end |> Dict{String,LocationData}
     
