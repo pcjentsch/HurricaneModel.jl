@@ -1,13 +1,18 @@
 using LaTeXStrings
 function fit_animation(location_data)
+
+    default(fontfamily = "Computer Modern")
+    default(framestyle=:box)
+    default(dpi=300) 
     (; new_cases, total_cases, dates) = location_data
     plt = plot(dates,new_cases; 
         xlabel = "Date",
         ylabel = "Case incidence",
         title = "Fitting case incidence in Canada",
         label = "Case incidence in Canada",
-        size = (600,800),
+        size = (800,600),
         dpi = 200,
+        legend = :topleft,
     )
     yl = ylims(plt)
     xl = xlims(plt)
@@ -38,7 +43,8 @@ function fit_animation(location_data)
     gif(anim,"fitting_animation.gif"; fps = 10)
 
     plt2 = plot()
-    plot!(plt2,[c.dates[begin] for c in chunks],[m[1]/m[2] for m in minimizers]; label = L"R_{eff}",ylims = [0.0,10.0])
-    plot!(plt2,[c.dates[begin] for c in chunks],[0.5 * 1/m[2] for m in minimizers]; label = "serial interval",ylims = [0.0,10.0])
+    plot!(plt2,[c.dates[begin] for c in chunks],[m[1]/m[2] for m in minimizers]; label = L"R_{eff}")
+    plot!(plt2,[c.dates[begin] for c in chunks],[0.5 * 1/m[2] for m in minimizers];
+     label = "serial interval",dpi = 300, legend = :topright)
     savefig(plt2, "parameters.png")
 end

@@ -16,7 +16,7 @@ function chunk_data(location_data, position, length)
 end
 
 function fit_region((region_key,region_data,))
-    region_data_chunks = make_data_chunks(region_data,80,7)    
+    region_data_chunks = make_data_chunks(region_data,60,4)    
     models = fit_submodel(region_data_chunks)
     return [(loc = region_key,date = chunk.dates[begin],stats = model) for (chunk,model) in zip(region_data_chunks,models)] 
 end
@@ -39,7 +39,7 @@ end
 
 
 function sufficiently_close(x,y)
-    eps = (0.015,0.015)
+    eps = (0.05,0.1)
     for (x_i,y_i,eps_i) in zip(x,y,eps)
         if !(abs(x_i - y_i)<eps_i)
             return false
@@ -51,23 +51,22 @@ end
 
 function forecast(x::LocationData,aggregate_data,forecast_length, location_data_by_region)
     model = fit_submodel(x)
+    display(SIR_statistics(model))
     begin_date = x.dates[begin]
     sufficiently_close_to_x(pt) = sufficiently_close(SIR_statistics(pt),SIR_statistics(model))
     close_pts = filter(:stats => sufficiently_close_to_x,aggregate_data) |>
             df -> filter(:date => <(begin_date - Day(length(x))),df) 
     
+    map!(SIR_statistics,close_pts[!,:stats],close_pts[!,:stats])
     display(close_pts)
-
     timeseries = mapreduce(hcat,eachrow(close_pts)) do pt
         loc_data = location_data_by_region[pt[:loc]]
         index_of_date = findfirst(==(pt[:date]),loc_data.dates) 
         timeseries_from_date = loc_data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
         scale = x.total_cases[begin] / timeseries_from_date[begin]
-        return timeseries_from_date .* scale
+        return  timeseries_from_date .* scale
     end
     
-    # display(timeseries)
-
     # display(median_forecast)
-    return timeseries
+    return close_pts, timeseries
 end

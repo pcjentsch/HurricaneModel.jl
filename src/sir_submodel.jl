@@ -34,7 +34,8 @@ function model(p, data_chunk; extend = 0.0)::(Vector{SVector{3,T}} where T)
     return sol.u
 end
 
-function cost(sol,data)
+function cost(sol,data,x)
+    β,γ,I_0 = x
     c = 0.0
     @inbounds @simd for i in 1:length(data) - 1
         c += ((sol[i+1][3] - sol[i][3]) - data[i])^2
@@ -42,7 +43,7 @@ function cost(sol,data)
     # @inbounds @simd for i in 1:length(data)
     #     c += (sol[i][3] - data[i])^2
     # end
-    return c
+    return c + 1e3*(1/γ - 1/6)^2 #regularize on serial interval
 end
 using NLopt
 using ForwardDiff
@@ -50,9 +51,9 @@ function fit_submodel(data_chunk::LocationData; x_0 = [1.0,0.5,100.0])
 
     function f(x::Vector{T}) where T<:Real
         sol = model(x,data_chunk)
-        return cost(sol,data_chunk.new_cases)
+        return cost(sol,data_chunk.new_cases,x)
     end
-    res = bboptimize(f; SearchRange = [(0.01,50.0),(0.01,50.0),(0.0,10_000.0)],
+    res = bboptimize(f; SearchRange = [(0.05,10.0),(0.05,10.0),(0.0,10_000.0)],
     TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 30_000)
     # display(best_candidate(res))
     return best_candidate(res)#minx
