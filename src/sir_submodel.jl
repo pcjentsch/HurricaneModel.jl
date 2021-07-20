@@ -4,7 +4,6 @@
 using StaticArrays
 function model_rhs(u,p,t)
     β,γ = p
-    
     return @SVector [
         -β * u[1]*u[2], #S
         β * u[1]*u[2] - γ*u[2], #I 
@@ -15,18 +14,15 @@ end
 
 function model(p, data_chunk; extend = 0.0)::(Vector{SVector{3,T}} where T)
     β,γ,I_0 = p
-    l = length(data_chunk.cases_list) - 1
+    l = length(data_chunk.new_cases) - 1
     # I_0 = typeof(β)(data_chunk.cases_list[begin])
-    # display(data_chunk.cases_list)
-    params = (β/data_chunk.jurisdiction_population,γ)
-    # display(data_chunk.jurisdiction_population)
-    # display(data_chunk.recovered)
-    # display(I_0)
-
+    params = (β/data_chunk.population,γ)
+    recovered = data_chunk.total_cases[begin]
+    # display(data_chunk.total_vaccinations[begin])
     u0 = @SVector[
-        data_chunk.jurisdiction_population -   (I_0+ data_chunk.recovered),
+        data_chunk.population - (I_0+ recovered + data_chunk.total_vaccinations[begin]),
         I_0,
-        data_chunk.recovered
+        0.0,
     ]
 
     # model_rhs(u0,params,0)
@@ -40,64 +36,32 @@ end
 
 function cost(sol,data)
     c = 0.0
-    # @inbounds @simd for i in 1:length(data) - 1
-    #     c += ((sol[i+1][4] - sol[i][4]) - data[i])^2
-    # end
-    @inbounds @simd for i in 1:length(data)
-        c += (sol[i][3] - data[i])^2
+    @inbounds @simd for i in 1:length(data) - 1
+        c += ((sol[i+1][3] - sol[i][3]) - data[i])^2
     end
+    # @inbounds @simd for i in 1:length(data)
+    #     c += (sol[i][3] - data[i])^2
+    # end
     return c
 end
 using NLopt
 using ForwardDiff
-function fit_submodel(data_chunk::DataChunk; x_0 = [1.0,0.5,100.0])
-    data = data_chunk.cases_list
-    l = Float64(length(data)) - 1
+function fit_submodel(data_chunk::LocationData; x_0 = [1.0,0.5,100.0])
 
     function f(x::Vector{T}) where T<:Real
         sol = model(x,data_chunk)
-        return cost(sol,data_chunk.cases_list)
+        return cost(sol,data_chunk.new_cases)
     end
-    function f_w_grad(x::Vector{T},grad::Vector) where T<:Real
-        if length(grad)>0
-            ForwardDiff.gradient!(grad,f,x)
-        end
-        return f(x)
-    end
-    
-    # f(x_0,data_chunk)
-    # @btime $f($x_0,$data_chunk)
-    # betweenness centrality
-    # display(x_0)
-    res = bboptimize(f; SearchRange = [(0.0,10.0),(0.0,10.0),(0.0,10_000.0)],
-    TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 25_000)
+    res = bboptimize(f; SearchRange = [(0.01,50.0),(0.01,50.0),(0.0,10_000.0)],
+    TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 30_000)
     # display(best_candidate(res))
-    # minimizer = solve(prob,BBO()).u
-    
-    # grad = zeros(3)
-    # f_w_grad(x_0,grad)
-    
-    # opt = Opt(:LN_NELDERMEAD, 3)
-    # opt.lower_bounds = [0.0,0.0,0.0]
-    # opt.upper_bounds = [10.0,10.0,10_000.0]
-    # opt.xtol_rel = 1e-4
-
-    # opt.min_objective = f_w_grad
-
-    # (minf,minx,ret) = NLopt.optimize(opt, x_0)
-    # numevals = opt.numevals # the number of function evaluations
-    # println("got $minf at $minx after $numevals iterations (returned $ret)")
-
     return best_candidate(res)#minx
 end
-function fit_submodel(data_chunks::Vector{DataChunk})
-    
-    x_0 = [2.5,2.5,1000.0]
-    models = Vector{typeof(x_0)}()
+function fit_submodel(data_chunks::Vector{LocationData})
+    models = Vector{Vector{Float64}}()
     for chunk in data_chunks
-        model = fit_submodel(chunk;x_0)
+        model = fit_submodel(chunk)
         push!(models, model)
-        x_0 = model
     end
     return models
 end

@@ -1,28 +1,24 @@
-
-struct DataChunk
-    cases_list::Vector{Float64} #incident cases by day
-    begin_date::Date #date corresponding to total cases
-    jurisdiction_population::Float64
-    recovered::Float64
-end
 function make_data_chunks(location_data,size,resolution)
-    (; cases, population, dates) = location_data
-    daily_case_incidence = diff(cases)
+    
+   return map(i -> chunk_data(location_data,i,size),1:resolution:length(location_data)-size) 
+end
 
-    return map(50:resolution:length(cases)-size-1) do i
-        DataChunk(
-            cases[i:i+size],
-            dates[i],
-            population,
-            cases[i-10] #guess
-        )
-    end
+function chunk_data(location_data, position, length)
+    (; total_cases, new_cases, new_vaccinations,total_vaccinations, population, dates) = location_data
+    return LocationData(
+        total_cases[position:position+length],
+        new_cases[position:position+length],
+        new_vaccinations[position:position+length],
+        total_vaccinations[position:position+length],
+        dates[position:position+length],
+        population,
+    )
 end
 
 function fit_region((region_key,region_data,))
-    region_data_chunks = make_data_chunks(region_data,30,7)    
+    region_data_chunks = make_data_chunks(region_data,80,7)    
     models = fit_submodel(region_data_chunks)
-    return [(loc = region_key,date = chunk.begin_date,stats = model) for (chunk,model) in zip(region_data_chunks,models)] 
+    return [(loc = region_key,date = chunk.dates[begin],stats = model) for (chunk,model) in zip(region_data_chunks,models)] 
 end
 
 function SIR_statistics(model)
@@ -43,7 +39,7 @@ end
 
 
 function sufficiently_close(x,y)
-    eps = (0.05,0.05)
+    eps = (0.015,0.015)
     for (x_i,y_i,eps_i) in zip(x,y,eps)
         if !(abs(x_i - y_i)<eps_i)
             return false
@@ -53,20 +49,20 @@ function sufficiently_close(x,y)
 end
 
 
-function forecast(x::DataChunk,aggregate_data,forecast_length, location_data_by_region)
+function forecast(x::LocationData,aggregate_data,forecast_length, location_data_by_region)
     model = fit_submodel(x)
+    begin_date = x.dates[begin]
     sufficiently_close_to_x(pt) = sufficiently_close(SIR_statistics(pt),SIR_statistics(model))
-    display(SIR_statistics(model))
     close_pts = filter(:stats => sufficiently_close_to_x,aggregate_data) |>
-            df -> filter(:date => <(x.begin_date - Day(length(x.cases_list))),df) 
+            df -> filter(:date => <(begin_date - Day(length(x))),df) 
     
     display(close_pts)
 
     timeseries = mapreduce(hcat,eachrow(close_pts)) do pt
         loc_data = location_data_by_region[pt[:loc]]
         index_of_date = findfirst(==(pt[:date]),loc_data.dates) 
-        timeseries_from_date = loc_data.cases[index_of_date:min(end,index_of_date + forecast_length)]
-        scale = x.cases_list[begin] / timeseries_from_date[begin]
+        timeseries_from_date = loc_data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
+        scale = x.total_cases[begin] / timeseries_from_date[begin]
         return timeseries_from_date .* scale
     end
     
