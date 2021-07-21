@@ -30,8 +30,6 @@ function main()
     plot_forecast(location_data_by_region)
     
     # fit_animation(location_data_by_region["Canada"])
-
-    # return location_data_by_region["Canada"]
 end
 
 
