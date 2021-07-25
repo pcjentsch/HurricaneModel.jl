@@ -30,7 +30,7 @@ function main()
     location_data_list = fetch_data_by_country_owid()
 
     hm = HurricaneModel(default_submodel,default_dist,location_data_list, 14,1)
-    canada_data = location_data_list[findfirst(l-> l.name == "Canada",location_data_list)]
+    canada_data = location_data_list[findfirst(l-> l.name == "United Kingdom",location_data_list)]
     display(canada_data)
 
     # close_pts,ts_table = forecast(canada_data,hm,forecast_length)

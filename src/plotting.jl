@@ -61,8 +61,8 @@ function plot_forecast(data,forecast_curried)
     forecast_length = 180 + test_fit_length
     close_pts,ts_table = forecast_curried(test_data,forecast_length)
     med = map(median,eachrow(ts_table))
-    uq = map(pt->quantile(pt,0.75),eachrow(ts_table))
-    lq = map(pt->quantile(pt,0.25),eachrow(ts_table))
+    uq = map(pt->quantile(pt,0.90),eachrow(ts_table))
+    lq = map(pt->quantile(pt,0.1),eachrow(ts_table))
     xpts = test_date:Day(1):test_date+Day(forecast_length)
     display(length(test_date:Day(1):data.dates[end]))
     p = plot( test_date:Day(1):data.dates[end],  data.total_cases[test_date_index:end];
