@@ -1,4 +1,3 @@
-const PACKAGE_FOLDER = dirname(dirname(pathof(CompartmentalHurricane)))
 
 function is_contiguous(l)
     for i in 1:length(l)-1
@@ -16,7 +15,7 @@ function fetch_data_by_country_owid()
     covid_cases_data = CSV.File(covid_cases_path) |> DataFrame
 
     locations = unique(covid_cases_data[:,:location])
-    location_data_dict = Dict{String,LocationData}()
+    location_data_list = Vector{LocationData}()
     for location in locations
         location_subset_w_missing = filter(:location =>  ==(location),covid_cases_data)
         sort!(location_subset_w_missing,:date)
@@ -34,6 +33,7 @@ function fetch_data_by_country_owid()
                 throw(error("dates not contiguous!"))
             end
             location_data = LocationData(
+                location,
                 total_cases,
                 new_cases_smoothed,
                 new_vaccinations_smoothed,
@@ -41,13 +41,14 @@ function fetch_data_by_country_owid()
                 dates,
                 population
             )
-            location_data_dict[location] = location_data
+            push!(location_data_list,location_data)
         end
     end
-    return location_data_dict
+    return location_data_list
 end
 
 struct LocationData
+    name::String #name of region 
     total_cases::Vector{Float64} #total cases by day
     new_cases::Vector{Float64} #total cases by day
     new_vaccinations::Vector{Float64} #total cases by day

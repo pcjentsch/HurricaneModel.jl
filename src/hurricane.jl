@@ -1,68 +1,38 @@
-function make_data_chunks(location_data,size,resolution)
-    
-   return map(i -> chunk_data(location_data,i,size),1:resolution:length(location_data)-size) 
-end
+struct HurricaneModel{F,G,T}
+    submodel::F
+    clustering_function::G
+    loc_data::Vector{LocationData}
+    fit_data::T
+    function HurricaneModel(submodel::F,clustering_function::G,loc_data,length,spacing; cache = "cache.dat") where {F<:Function,G<:Function}
+        data_chunks = mapreduce(x -> make_data_chunks(x, length,spacing),vcat,loc_data)
 
-function chunk_data(location_data, position, length)
-    (; total_cases, new_cases, new_vaccinations,total_vaccinations, population, dates) = location_data
-    return LocationData(
-        total_cases[position:position+length],
-        new_cases[position:position+length],
-        new_vaccinations[position:position+length],
-        total_vaccinations[position:position+length],
-        dates[position:position+length],
-        population,
-    )
-end
+        row_from_chunk(chunk) = (loc = chunk.name,date = chunk.dates[begin],stats = submodel(chunk))
 
-function fit_region((region_key,region_data,))
-    region_data_chunks = make_data_chunks(region_data,60,4)    
-    models = fit_submodel(region_data_chunks)
-    return [(loc = region_key,date = chunk.dates[begin],stats = model) for (chunk,model) in zip(region_data_chunks,models)] 
-end
-
-function SIR_statistics(model)
-    β, γ = model
-    return [β/γ, 1/γ]
-end
-
-function aggregate(location_data_by_region)
-    # if "cache.dat"
-    regions = collect(pairs(location_data_by_region))
-    df = DataFrame()#(loc = String[], date = Date[], stats = Any[])
-    data_points = ThreadsX.map(fit_region, regions) |> l -> reduce(vcat,l)
-    for row in data_points
-        push!(df,row)
+        df = !ispath(cache) ? 
+            map(row_from_chunk,  data_chunks) |> DataFrame :
+            deserialize(cache)
+        
+        return new{F,G,typeof(df)}(submodel,clustering_function,loc_data,df)
     end
-    return df
 end
 
+function forecast(x::LocationData,model::HurricaneModel,forecast_length)
+    (;loc_data, clustering_function, submodel,fit_data) = model
 
-function sufficiently_close(x,y)
-    eps = (0.05,0.1)
-    for (x_i,y_i,eps_i) in zip(x,y,eps)
-        if !(abs(x_i - y_i)<eps_i)
-            return false
-        end
-    end
-    return true
-end
-
-
-function forecast(x::LocationData,aggregate_data,forecast_length, location_data_by_region)
-    model = fit_submodel(x)
-    display(SIR_statistics(model))
+    source = submodel(x)
+    display(source)
     begin_date = x.dates[begin]
-    sufficiently_close_to_x(pt) = sufficiently_close(SIR_statistics(pt),SIR_statistics(model))
-    close_pts = filter(:stats => sufficiently_close_to_x,aggregate_data) |>
+    sufficiently_close_to_x(pt) = clustering_function(pt,source)
+    close_pts = filter(:stats => sufficiently_close_to_x,fit_data) |>
             df -> filter(:date => <(begin_date - Day(length(x))),df) 
     
-    map!(SIR_statistics,close_pts[!,:stats],close_pts[!,:stats])
     display(close_pts)
+
     timeseries = mapreduce(hcat,eachrow(close_pts)) do pt
-        loc_data = location_data_by_region[pt[:loc]]
-        index_of_date = findfirst(==(pt[:date]),loc_data.dates) 
-        timeseries_from_date = loc_data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
+        loc_ind = findfirst(p -> p.name == pt[:loc],loc_data)
+        data = loc_data[loc_ind ]
+        index_of_date = findfirst(==(pt[:date]),data.dates) 
+        timeseries_from_date = data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
         scale = x.total_cases[begin] / timeseries_from_date[begin]
         return  timeseries_from_date .* scale
     end
@@ -70,3 +40,21 @@ function forecast(x::LocationData,aggregate_data,forecast_length, location_data_
     # display(median_forecast)
     return close_pts, timeseries
 end
+
+function make_data_chunks(location_data,size,resolution)
+   return map(i -> chunk_data(location_data,i,size),1:resolution:(length(location_data)-size - 1)) 
+end
+
+function chunk_data(location_data, position, length)
+    (; name,total_cases, new_cases, new_vaccinations,total_vaccinations, population, dates) = location_data
+    return LocationData(
+        name,
+        total_cases[position:position+length+1],
+        new_cases[position:position+length+1],
+        new_vaccinations[position:position+length+1],
+        total_vaccinations[position:position+length+1],
+        dates[position:position+length+1],
+        population,
+    )
+end
+

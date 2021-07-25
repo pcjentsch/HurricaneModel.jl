@@ -1,7 +1,4 @@
-# const default_gamma = 1/5
 
-
-using StaticArrays
 function model_rhs(u,p,t)
     β,γ = p
     return @SVector [
@@ -12,7 +9,7 @@ function model_rhs(u,p,t)
     ] 
 end
 
-function model(p, data_chunk; extend = 0.0)::(Vector{SVector{3,T}} where T)
+function sir_model(p, data_chunk; extend = 0.0)::(Vector{SVector{3,T}} where T)
     β,γ,I_0 = p
     l = length(data_chunk.new_cases) - 1
     # I_0 = typeof(β)(data_chunk.cases_list[begin])
@@ -45,12 +42,10 @@ function cost(sol,data,x)
     # end
     return c + 1e3*(1/γ - 1/6)^2 #regularize on serial interval
 end
-using NLopt
-using ForwardDiff
-function fit_submodel(data_chunk::LocationData; x_0 = [1.0,0.5,100.0])
+function sir_submodel(data_chunk::LocationData; x_0 = [1.0,0.5,100.0])
 
     function f(x::Vector{T}) where T<:Real
-        sol = model(x,data_chunk)
+        sol = sir_model(x,data_chunk)
         return cost(sol,data_chunk.new_cases,x)
     end
     res = bboptimize(f; SearchRange = [(0.05,10.0),(0.05,10.0),(0.0,10_000.0)],
@@ -58,11 +53,19 @@ function fit_submodel(data_chunk::LocationData; x_0 = [1.0,0.5,100.0])
     # display(best_candidate(res))
     return best_candidate(res)#minx
 end
-function fit_submodel(data_chunks::Vector{LocationData})
-    models = Vector{Vector{Float64}}()
-    for chunk in data_chunks
-        model = fit_submodel(chunk)
-        push!(models, model)
+
+function SIR_statistics(model)
+    β, γ = model
+    return [β/γ, 1/γ]
+end
+
+
+function sufficiently_close(x,y)
+    eps = (0.05,0.1)
+    for (x_i,y_i,eps_i) in zip(SIR_statistics(x),SIR_statistics(y),eps)
+        if !(abs(x_i - y_i)<eps_i)
+            return false
+        end
     end
-    return models
+    return true
 end
