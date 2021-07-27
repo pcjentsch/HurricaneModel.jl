@@ -9,7 +9,7 @@ function default_submodel(data_chunk::LocationData)
 end
 
 function default_dist(x,y)
-    eps = (0.02,0.02)
+    eps = (0.005,0.002)
     for (x_i,y_i,eps_i) in zip(x,y,eps)
         if !(abs(x_i - y_i)<eps_i)
             return false

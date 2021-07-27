@@ -8,6 +8,32 @@ function is_contiguous(l)
     end
     return true
 end
+function fetch_data_by_country_vanilla_model()
+    
+    covid_cases_path = joinpath(PACKAGE_FOLDER,"data","taha-covid-data.csv")
+    covid_cases_data = CSV.File(covid_cases_path) |> DataFrame |> df -> df[:,2:end]
+
+    provinces = covid_cases_data[3,2:end] |> Vector |> v -> replace( v, missing => "")
+    countries = covid_cases_data[4,2:end] |> Vector |> v -> replace( v, missing => "")
+    
+    location_data_list = Vector{LocationData}()
+    for (i,(province, country)) in enumerate(zip(provinces, countries))
+        location_label = isempty(province) ? country : "$province, $country" 
+        total_cases = covid_cases_data[20:end,i+1] |> v-> replace( v, missing => "0.0") |> v -> parse.(Float64,v)
+        dates = covid_cases_data[20:end,1] |> v-> Date.(v, "mm/dd/yyyy")
+        location_data = LocationData(
+                location_label,
+                total_cases,
+                zeros(length(total_cases)),
+                zeros(length(total_cases)),
+                zeros(length(total_cases)),
+                dates,
+                1,
+        )
+            push!(location_data_list,location_data)
+    end
+    return location_data_list
+end
 
 function fetch_data_by_country_owid()
     

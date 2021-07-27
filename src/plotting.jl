@@ -54,7 +54,7 @@ function plot_forecast(data,forecast_curried)
     default(framestyle=:box)
     default(dpi=300)
 
-    test_fit_length= 60
+    test_fit_length= 14
     test_date = Date(2020,12,1) - Day(test_fit_length)
     test_date_index = findfirst(==(test_date),data.dates)
     test_data = chunk_data(data,test_date_index,test_fit_length)
