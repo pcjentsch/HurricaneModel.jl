@@ -60,8 +60,8 @@ function SIR_statistics(model)
 end
 
 
-function sufficiently_close(x,y)
-    eps = (0.05,0.1)
+function sir_dist(x,y)
+    eps = (0.01,0.005)
     for (x_i,y_i,eps_i) in zip(SIR_statistics(x),SIR_statistics(y),eps)
         if !(abs(x_i - y_i)<eps_i)
             return false

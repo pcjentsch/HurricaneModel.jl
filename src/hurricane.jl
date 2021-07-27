@@ -8,10 +8,12 @@ struct HurricaneModel{F,G,T}
 
         row_from_chunk(chunk) = (loc = chunk.name,date = chunk.dates[begin],stats = submodel(chunk))
 
-        df = !ispath(cache) ? 
-            map(row_from_chunk,  data_chunks) |> DataFrame :
-            deserialize(cache)
-        
+        if !ispath(cache)  
+            df = ThreadsX.map(row_from_chunk,  data_chunks) |> DataFrame 
+            serialize(cache,df)
+        else
+            df = deserialize(cache)
+        end
         return new{F,G,typeof(df)}(submodel,clustering_function,loc_data,df)
     end
 end
