@@ -49,7 +49,8 @@ function fetch_data_by_country_owid()
         new_cases_smoothed = location_subset[:,:new_cases_smoothed]       
         total_cases= location_subset[:,:total_cases]
         dates = location_subset[:,:date]
-
+        stringency = replace(location_subset[:,:stringency_index], missing => 25.0)
+        # display(stringency)
         new_vaccinations_smoothed = replace(location_subset[:, :new_vaccinations_smoothed],missing => 0.0)
         total_vaccinations = replace(location_subset[:, :people_fully_vaccinated],missing => 0.0)
         if length(total_cases) >0
@@ -65,6 +66,7 @@ function fetch_data_by_country_owid()
                 new_vaccinations_smoothed,
                 total_vaccinations,
                 dates,
+                stringency,
                 population
             )
             push!(location_data_list,location_data)
@@ -80,9 +82,16 @@ struct LocationData
     new_vaccinations::Vector{Float64} #total cases by day
     total_vaccinations::Vector{Float64} #total cases by day
     dates::Vector{Date} #date corresponding to total cases
+    stringency::Vector{Float64}
     population::Float64
 end
-import Base:length
+
 length(x::LocationData) = length(x.dates)
+end_date(x::LocationData) = x.dates[end] 
+function fetch_location(loc::String, loc_data_list::Vector{LocationData})
+    ind = findfirst(l-> l.name == loc,loc_data_list)
+    return loc_data_list[ind]
+end
+
 # function population()
     
