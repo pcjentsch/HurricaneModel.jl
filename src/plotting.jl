@@ -68,7 +68,7 @@ function plot_forecast(fname,data,hm,from_date)
     forecast_length = 180 + hm.chunk_length
     ts_table = forecast(test_data,hm,forecast_length)
     if isnothing(ts_table)
-        return (name = fname, prediction = [])
+        return []
     end
     # seirv_parameters = seirv_submodel(test_data)
 
@@ -80,19 +80,26 @@ function plot_forecast(fname,data,hm,from_date)
     lq = map(pt->quantile(pt,0.25),eachrow(ts_table))
     xpts = test_date:Day(1):test_date+Day(forecast_length) |> collect
     
-
+    best_ts_table = best_possible_forecast(data,hm,forecast_length,test_date)
+    best_med = map(median,eachrow(best_ts_table))
+    best_uq = map(pt->quantile(pt,0.75),eachrow(best_ts_table))
+    best_lq = map(pt->quantile(pt,0.25),eachrow(best_ts_table))
     p = plot( test_date:Day(1):data.dates[end],  data.total_cases[test_date_index:end];
      label = "data", xlabel = "Day", ylabel = "Confirmed incident cases")
     #  plot!(p,xpts,[seirv_sol[i].C for i in 1:length(xpts)]; label= "base SEIRV forecast")
      plot!(p,xpts,med; ribbon = (med .- lq,uq .- med), label = "forecast", legend = :topleft, yscale = :log10, )
-    # for (i,r) in enumerate(eachcol(ts_table))
+     plot!(p,xpts,best_med; ribbon = (best_med .- best_lq,best_uq .- best_med), label = "top 10 forecasts", legend = :topleft, yscale = :log10, )
+   
+     # for (i,r) in enumerate(eachcol(ts_table))
 
     #     plot!(p,xpts,r; label = "$(close_pts[i,:loc]), $(close_pts[i,:date])")
     # end
 
     vspan!(p,[test_date,test_date+Day(hm.chunk_length)]; alpha = 0.1, label = "data used for fitting")
     savefig(p,joinpath(PACKAGE_FOLDER,"plots","$fname.png"))
-    return (name = fname,prediction = [med[i]-data.total_cases[i] for i in hm.chunk_length:length(med)])
+    err = [data_i - forecast for (data_i,forecast) in zip(med,data.total_cases[test_date_index:end])]
+    display(length(err))
+    return err
 end
 # stats = mapreduce(SIR_statistics,hcat,aggregate[:,:stats])
 # plt =scatter(stats[1,:],stats[2,:]; markersize = 2.0,

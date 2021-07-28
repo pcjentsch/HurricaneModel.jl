@@ -32,25 +32,26 @@ function forecast(x::LocationData,model::HurricaneModel,forecast_length)
     # display(filter_from_date)
     sufficiently_close_to_x(pt) = clustering_function(pt,source)
     close_pts = filter(:stats => sufficiently_close_to_x,fit_data) |>
-            df -> filter(:date => <(filter_from_date),df) 
+            df -> filter(:date => <(filter_from_date),df)[:,1:2]
     
-    display(close_pts)
+    return get_predictions_from_date_time(close_pts,loc_data,forecast_length,x.total_cases[begin])
+end
+function get_predictions_from_date_time(close_pts::DataFrame,loc_data,forecast_length,begin_cases)
     if !isempty(close_pts)
         timeseries = mapreduce(hcat,eachrow(close_pts)) do pt
             loc_ind = findfirst(p -> p.name == pt[:loc],loc_data)
             data = loc_data[loc_ind]
             index_of_date = findfirst(==(pt[:date]),data.dates) 
             timeseries_from_date = data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
-            scale = x.total_cases[begin] / timeseries_from_date[begin]
+            scale = begin_cases/ timeseries_from_date[begin]
             return  timeseries_from_date .* scale
         end
         return timeseries
     else
         return nothing
     end
-
-    # display(median_forecast)
 end
+
 
 function forecast_from_date(data_to_forecast,hm,from_date)
     test_date = from_date - Day(hm.chunk_length)
@@ -60,13 +61,15 @@ function forecast_from_date(data_to_forecast,hm,from_date)
     ts_table = forecast(test_data,hm,forecast_length)
     return ts_table
 end
-
+using LinearAlgebra
 function best_possible_forecast(data_to_forecast::LocationData,model::HurricaneModel,forecast_length,from_date)
     @unpack loc_data, clustering_function, submodel,fit_data = model
     
+
+
+    last_date = end_date(loc_data[begin]);
     forecast_date_index = findfirst(==(from_date),data_to_forecast.dates)
-    display(forecast_date_index)
-    total_cases_data = data_to_forecast.total_cases[forecast_date_index:forecast_date_index + forecast_length]
+    total_cases_data = data_to_forecast.total_cases[forecast_date_index : (forecast_date_index + forecast_length +1)]
     data_chunks = mapreduce(x -> make_data_chunks(x, forecast_length,7),vcat,loc_data)
 
     function dist_from_x(l1)
@@ -76,26 +79,15 @@ function best_possible_forecast(data_to_forecast::LocationData,model::HurricaneM
 
     row_from_chunk(chunk) = (loc = chunk.name,date = chunk.dates[begin],stats = dist_from_x(chunk))
     
-    display(map(row_from_chunk, data_chunks)|> DataFrame)
+    # display((begin_date + Day(forecast_length),last_date))
+    # filter_from_date = from_date + Day(forecast_length) > from_date ?
+    # from_date -  ((from_date + Day(forecast_length)) - from_date) : from_date
+
     best_pts = map(row_from_chunk, data_chunks) |> DataFrame |>
-            df -> sort(df, :stats)[1:10,:]
-
-    if !isempty(best_pts)
-        timeseries = mapreduce(hcat,eachrow(best_pts)) do pt
-            loc_ind = findfirst(p -> p.name == pt[:loc],loc_data)
-            data = loc_data[loc_ind]
-            index_of_date = findfirst(==(pt[:date]),data.dates) 
-            timeseries_from_date = data.total_cases[index_of_date:min(end,index_of_date + forecast_length)]
-            scale = total_cases_data[begin] / timeseries_from_date[begin]
-            return  timeseries_from_date .* scale
-        end
-        return timeseries
-    else
-        return nothing
-    end
-    
-
-
+                df -> filter(:date => <(from_date - Day(1)),df) |>
+                df -> sort(df, :stats)[1:50,1:2]
+    display(best_pts)
+    return get_predictions_from_date_time(best_pts, loc_data,forecast_length,total_cases_data[begin])
 end
 
 function make_data_chunks(location_data,size,resolution)

@@ -41,14 +41,15 @@ function main()
     hm_seirv = HurricaneModel(seirv_submodel,seirv_dist,location_data_list, 60,3; cache = "seirv_cache.dat")
     hm_list = [("sir",hm_sir),("seirv",hm_seirv)]
     yesterday = today()-Day(2)
-    dates = [Date(2020,12,1), yesterday]
-    # best_possible_forecast(uk_data,hm_default,180,dates[1])
+    dates = [Date(2020,12,1)]
+    best_possible_forecast(uk_data,hm_default,180,dates[1])
 
     # display(yesterday)
     data_iterator = Iterators.product(datasets, hm_list, dates)
     df = DataFrame()
     for (data,(name,hm),date) in data_iterator
-        push!(df,plot_forecast("$(data.name)_$(name)_$date",data,hm,date))
+        forecast_error = plot_forecast("$(data.name)_$(name)_$date",data,hm,date)
+        push!(df,(model_name = name,date = date,location = data.name, forecast_error = forecast_error))
     end 
 
     # CSV.write("output.csv",df)
