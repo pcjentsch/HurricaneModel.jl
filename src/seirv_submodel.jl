@@ -65,7 +65,7 @@ end
 
 
 function seirv_dist(x,y)
-    eps = (0.2,0.2,0.2)
+    eps = (0.1,0.1,0.2)
     transformed_x = SEIRV_statistics(x)
     transformed_y = SEIRV_statistics(y)
     for (x_i,y_i,eps_i) in zip(transformed_x,transformed_y,eps)

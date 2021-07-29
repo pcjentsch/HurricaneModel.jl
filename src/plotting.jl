@@ -56,6 +56,21 @@ function fit_animation(compartmental_submodel,compartmental_model,location_data)
     #  label = "serial interval",dpi = 300, legend = :topright)
     # savefig(plt2, "parameters.png")
 end
+function get_stats(ts_table)
+     med = Float64[]
+     lq = Float64[]
+     uq = Float64[]
+     for r in eachrow(ts_table)
+        if all(ismissing.(r))
+            break
+        else
+            push!(med,median(skipmissing(r)))
+            push!(lq,quantile(skipmissing(r),0.75))
+            push!(uq,quantile(skipmissing(r),0.25))
+        end
+    end
+    return med,lq,uq
+end
 function plot_forecast(fname,data,hm,from_date)
 
     default(fontfamily = "Computer Modern")
@@ -65,7 +80,7 @@ function plot_forecast(fname,data,hm,from_date)
     test_date = from_date - Day(hm.chunk_length)
     test_date_index = findfirst(==(test_date),data.dates)
     test_data = chunk_data(data,test_date_index,hm.chunk_length)
-    forecast_length = 180 + hm.chunk_length
+    forecast_length = 120 + hm.chunk_length
     ts_table = forecast(test_data,hm,forecast_length)
     if isnothing(ts_table)
         return []
@@ -74,24 +89,20 @@ function plot_forecast(fname,data,hm,from_date)
 
     # seirv_sol = seirv_model(seirv_parameters,test_data; extend = 180).u
 
-    
-    med = map(median,eachrow(ts_table))
-    uq = map(pt->quantile(pt,0.75),eachrow(ts_table))
-    lq = map(pt->quantile(pt,0.25),eachrow(ts_table))
+    med,lq,uq = get_stats(ts_table)
     xpts = test_date:Day(1):test_date+Day(forecast_length) |> collect
     
     best_ts_table = best_possible_forecast(data,hm,forecast_length,test_date)
-    best_med = map(median,eachrow(best_ts_table))
-    best_uq = map(pt->quantile(pt,0.75),eachrow(best_ts_table))
-    best_lq = map(pt->quantile(pt,0.25),eachrow(best_ts_table))
-    p = plot( test_date:Day(1):data.dates[end],  data.total_cases[test_date_index:end];
+    best_med,best_lq,best_uq = get_stats(best_ts_table)
+    p = plot( test_date:Day(1):test_date + Day(forecast_length),  data.total_cases[test_date_index:test_date_index + forecast_length];
      label = "data", xlabel = "Day", ylabel = "Confirmed incident cases")
     #  plot!(p,xpts,[seirv_sol[i].C for i in 1:length(xpts)]; label= "base SEIRV forecast")
-     plot!(p,xpts,med; ribbon = (med .- lq,uq .- med), label = "forecast", legend = :topleft, yscale = :log10, )
-     plot!(p,xpts,best_med; ribbon = (best_med .- best_lq,best_uq .- best_med), label = "top 10 forecasts", legend = :topleft, yscale = :log10, )
+    if !any(isempty.(med))
+        plot!(p,xpts[1:length(med)],med; ribbon = (med .- lq,uq .- med), label = "forecast", legend = :topleft, yscale = :log10, )
+    end
+    plot!(p,xpts[1:length(best_med)],best_med; ribbon = (best_med .- best_lq,best_uq .- best_med), label = "top 10 forecasts", legend = :topleft, yscale = :log10, )
    
      # for (i,r) in enumerate(eachcol(ts_table))
-
     #     plot!(p,xpts,r; label = "$(close_pts[i,:loc]), $(close_pts[i,:date])")
     # end
 

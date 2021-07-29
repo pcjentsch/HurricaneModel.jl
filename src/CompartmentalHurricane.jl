@@ -28,10 +28,11 @@ include("hurricane.jl")
 include("sir_submodel.jl")
 include("seirv_submodel.jl")
 include("plotting.jl")
+using Printf
 function main()
     location_data_list = fetch_data_by_country_owid()
     # location_data_list = fetch_data_by_country_vanilla_model()
-
+    # make_dataset(location_data_list,160, Date(2020,12,1))
     uk_data = fetch_location("United Kingdom",location_data_list)
     canada_data = fetch_location("Canada",location_data_list)
     netherlands_data = fetch_location("Netherlands",location_data_list)
@@ -42,17 +43,18 @@ function main()
     hm_list = [("sir",hm_sir),("seirv",hm_seirv)]
     yesterday = today()-Day(2)
     dates = [Date(2020,12,1)]
-    best_possible_forecast(uk_data,hm_default,180,dates[1])
 
     # display(yesterday)
     data_iterator = Iterators.product(datasets, hm_list, dates)
     df = DataFrame()
     for (data,(name,hm),date) in data_iterator
         forecast_error = plot_forecast("$(data.name)_$(name)_$date",data,hm,date)
-        push!(df,(model_name = name,date = date,location = data.name, forecast_error = forecast_error))
+
+        forecast_error_as_string = map(f -> (@sprintf "%.3f" f),forecast_error)
+        push!(df,(model_name = name,date = date,location = data.name, forecast_error = forecast_error_as_string))
     end 
 
-    # CSV.write("output.csv",df)
+    CSV.write("output.csv",df)
 end
 
 
