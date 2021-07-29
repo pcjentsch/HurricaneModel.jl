@@ -54,10 +54,9 @@ end
 
 
 function sir_dist(x,y)
-    eps = (0.05,0.05)
+    eps = (0.15,0.15)
     transformed_x = SIR_statistics(x)
     transformed_y = SIR_statistics(y)
-    # display((transformed_x,transformed_y))
     for (x_i,y_i,eps_i) in zip(transformed_x,transformed_y,eps)
         if !(abs(x_i - y_i)<eps_i)
             return false

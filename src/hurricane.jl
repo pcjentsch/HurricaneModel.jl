@@ -26,7 +26,7 @@ function forecast(x::LocationData,model::HurricaneModel,forecast_length)
     sufficiently_close_to_x(pt) = clustering_function(pt,source)
     close_pts = filter(:stats => sufficiently_close_to_x,fit_data)|>
             df -> filter(:date => <(x.dates[end] - Day(1)),df)[:,1:2]
-    display(close_pts)
+    # display(close_pts)
     return get_predictions_from_date_time(close_pts,loc_data,forecast_length,x.total_cases[begin],x.dates[end])
 end
 function get_predictions_from_date_time(close_pts::DataFrame,loc_data,forecast_length,begin_cases,end_date)
@@ -58,9 +58,10 @@ end
 # end
 
 function forecast_models(hm_list,from_date,forecast_length,loc_data)
-    fit_lengths_and_ts_tables = map(hm_list) do (_,m)
+    fit_lengths_and_ts_tables = ThreadsX.map(hm_list) do (_,m)
         test_date = from_date - Day(m.chunk_length +1)
-        test_date_index = findfirst(==(test_date),loc_data.dates)
+        test_date_index = findfirst(==(test_date),loc_data.dates);
+        isnothing(test_date_index) && return (m.chunk_length+1, [])
         test_data = chunk_data(loc_data,test_date_index,m.chunk_length)
         ts_length = forecast_length + m.chunk_length -1
         ts_table = forecast(test_data,m,ts_length)
@@ -86,7 +87,7 @@ function best_possible_forecast(data_to_forecast::LocationData,model::HurricaneM
     best_pts = map(row_from_chunk, data_chunks) |> DataFrame |>
                 df -> filter(:date => <(from_date - Day(forecast_length)),df) |>
                 df -> sort(df, :dist)[1:10,1:2]
-    display(best_pts)
+    # display(best_pts)
     return get_predictions_from_date_time(best_pts, loc_data,forecast_length,total_cases_data[begin],from_date)
 end
 

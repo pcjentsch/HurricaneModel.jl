@@ -56,21 +56,6 @@ function fit_animation(compartmental_submodel,compartmental_model,location_data)
     #  label = "serial interval",dpi = 300, legend = :topright)
     # savefig(plt2, "parameters.png")
 end
-function get_stats(ts_table)
-     med = Float64[]
-     lq = Float64[]
-     uq = Float64[]
-     for r in eachrow(ts_table)
-        if all(ismissing.(r))
-            break
-        else
-            push!(med,median(skipmissing(r)))
-            push!(lq,quantile(skipmissing(r),0.75))
-            push!(uq,quantile(skipmissing(r),0.25))
-        end
-    end
-    return med,lq,uq
-end
 
 function plot_forecast(fname,loc_data,hm_list,from_date)
     default(fontfamily = "Computer Modern")
@@ -105,9 +90,10 @@ function plot_forecast(fname,loc_data,hm_list,from_date)
     # yl = ylims(p)
     # ylims!(p,(yl[1],1e7))
     vspan!(p,[test_date,test_date+Day(60)]; alpha = 0.1, label = "Data used for fitting")
+    vline!(p,[from_date]; alpha = 0.1, label = "Forecast begin")
     savefig(p,joinpath(PACKAGE_FOLDER,"plots","$fname.png"))
     display(length.(errlist))
-    return errlist
+    return errlist,(from_date:Day(1):from_date+Day(forecast_length) |> collect)
 end
 # stats = mapreduce(SIR_statistics,hcat,aggregate[:,:stats])
 # plt =scatter(stats[1,:],stats[2,:]; markersize = 2.0,

@@ -95,3 +95,18 @@ end
 
 # function population()
     
+function get_stats(ts_table)
+    med = Float64[]
+    lq = Float64[]
+    uq = Float64[]
+    for r in eachrow(ts_table)
+       if all(ismissing.(r))
+           break
+       else
+           push!(med,median(skipmissing(r)))
+           push!(lq,quantile(skipmissing(r),0.75))
+           push!(uq,quantile(skipmissing(r),0.25))
+       end
+   end
+   return med,lq,uq
+end
