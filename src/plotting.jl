@@ -71,46 +71,43 @@ function get_stats(ts_table)
     end
     return med,lq,uq
 end
-function plot_forecast(fname,data,hm,from_date)
 
+function plot_forecast(fname,loc_data,hm_list,from_date)
     default(fontfamily = "Computer Modern")
     default(framestyle=:box)
     default(dpi=300)
-
-    test_date = from_date - Day(hm.chunk_length)
-    test_date_index = findfirst(==(test_date),data.dates)
-    test_data = chunk_data(data,test_date_index,hm.chunk_length)
-    forecast_length = 120 + hm.chunk_length
-    ts_table = forecast(test_data,hm,forecast_length)
-    if isnothing(ts_table)
-        return []
-    end
-    # seirv_parameters = seirv_submodel(test_data)
-
-    # seirv_sol = seirv_model(seirv_parameters,test_data; extend = 180).u
-
-    med,lq,uq = get_stats(ts_table)
-    xpts = test_date:Day(1):test_date+Day(forecast_length) |> collect
+    forecast_length = 120
+    fit_lengths_and_ts_tables = forecast_models(hm_list,from_date,forecast_length,loc_data)
+    forecasts = zip(fit_lengths_and_ts_tables...) |> collect
     
-    best_ts_table = best_possible_forecast(data,hm,forecast_length,test_date)
-    best_med,best_lq,best_uq = get_stats(best_ts_table)
-    p = plot( test_date:Day(1):test_date + Day(forecast_length),  data.total_cases[test_date_index:test_date_index + forecast_length];
-     label = "data", xlabel = "Day", ylabel = "Confirmed incident cases")
-    #  plot!(p,xpts,[seirv_sol[i].C for i in 1:length(xpts)]; label= "base SEIRV forecast")
-    if !any(isempty.(med))
-        plot!(p,xpts[1:length(med)],med; ribbon = (med .- lq,uq .- med), label = "forecast", legend = :topleft, yscale = :log10, )
-    end
-    plot!(p,xpts[1:length(best_med)],best_med; ribbon = (best_med .- best_lq,best_uq .- best_med), label = "top 10 forecasts", legend = :topleft, yscale = :log10, )
-   
-     # for (i,r) in enumerate(eachcol(ts_table))
-    #     plot!(p,xpts,r; label = "$(close_pts[i,:loc]), $(close_pts[i,:date])")
-    # end
+    forecast_labels = [(label for (label,hm) in hm_list)...,]
 
-    vspan!(p,[test_date,test_date+Day(hm.chunk_length)]; alpha = 0.1, label = "data used for fitting")
+    test_date = from_date - Day(60)
+    test_date_index = findfirst(==(test_date),loc_data.dates)
+
+    data_to_compare =  loc_data.total_cases[test_date_index:min(end,test_date_index + forecast_length + 60)]
+    p = plot( test_date:Day(1):test_date + Day(length(data_to_compare)-1),data_to_compare ;
+     label = "Data", xlabel = "Day", ylabel = "Confirmed incident cases")
+
+    errlist = []
+    for (chunk_length,ts_table,label,color) in zip(forecasts...,forecast_labels,color_palette)
+        if !isempty(ts_table)
+            xpts = from_date-Day(chunk_length):Day(1):from_date+Day(forecast_length) |> collect
+            med,lq,uq = get_stats(ts_table)
+            if !any(isempty.(med))
+                plot!(p,xpts[1:length(med)],med; ribbon = (med .- lq,uq .- med),
+                 legend = :topleft, yaxis = :log10,label,seriescolor = color)
+            end
+            err = [data_i - forecast for (data_i,forecast) in zip(med,loc_data.total_cases[test_date_index:end])]
+            push!(errlist,err[chunk_length:end])
+        end
+    end
+    # yl = ylims(p)
+    # ylims!(p,(yl[1],1e7))
+    vspan!(p,[test_date,test_date+Day(60)]; alpha = 0.1, label = "Data used for fitting")
     savefig(p,joinpath(PACKAGE_FOLDER,"plots","$fname.png"))
-    err = [data_i - forecast for (data_i,forecast) in zip(med,data.total_cases[test_date_index:end])]
-    display(length(err))
-    return err
+    display(length.(errlist))
+    return errlist
 end
 # stats = mapreduce(SIR_statistics,hcat,aggregate[:,:stats])
 # plt =scatter(stats[1,:],stats[2,:]; markersize = 2.0,

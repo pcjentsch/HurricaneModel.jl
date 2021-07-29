@@ -54,7 +54,7 @@ end
 
 
 function sir_dist(x,y)
-    eps = (0.1,0.1)
+    eps = (0.05,0.05)
     transformed_x = SIR_statistics(x)
     transformed_y = SIR_statistics(y)
     # display((transformed_x,transformed_y))

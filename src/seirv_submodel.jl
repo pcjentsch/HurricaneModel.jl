@@ -42,7 +42,7 @@ function seirv_cost(sol,data,p)
         @inbounds @simd for i in 1:length(new_cases)
             c += 1e-6 * (sol[i][4] - total_vaccinations[i])^2
         end
-        return c + 1e3*(1/γ - 1/6)^2 #regularize on serial interval
+        return c + 1e4*(1/γ - 1/6)^2 #regularize on serial interval
     else
         return Inf
     end
@@ -54,18 +54,20 @@ function seirv_submodel(data_chunk::LocationData;)
         return seirv_cost(sol,data_chunk,x)
     end
     res = bboptimize(f; SearchRange = [(0.05,10.0),(0.05,10.0),(0.05,10.0),(0.00,10.0),(1.0,10_000.0)],
-    TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 40_000)
+    TraceMode = :silent, NumDimensions = 3,MaxFuncEvals = 100_000)
+    display(SEIRV_statistics(best_candidate(res)))
     return best_candidate(res)#minx
 end
 
 function SEIRV_statistics(model)
     β,γ,σ,ν,I_0 = model
+
     return [β/γ, 1/σ + 2/γ, ν]
 end
 
 
 function seirv_dist(x,y)
-    eps = (0.1,0.1,0.2)
+    eps = (0.15,0.15,0.002)
     transformed_x = SEIRV_statistics(x)
     transformed_y = SEIRV_statistics(y)
     for (x_i,y_i,eps_i) in zip(transformed_x,transformed_y,eps)
